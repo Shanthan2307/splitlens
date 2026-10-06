@@ -1,0 +1,15 @@
+{
+  "description": "Indian restaurant: CGST + SGST added on top, 5% service charge, Indian rupee",
+  "sourceLanguage": "auto",
+  "targetLanguage": "en",
+  "expect": {
+    "merchantIncludes": "spice route",
+    "date": "2026-09-28",
+    "currency": "INR",
+    "detectedLanguage": "en",
+    "total": "2833.42",
+    "itemAmounts": ["345.00", "240.00", "295.00", "240.00", "1450.00"],
+    "lineAmounts": { "tax": ["67.46", "67.46"], "service": ["128.50"] },
+    "reconciles": true
+  }
+}

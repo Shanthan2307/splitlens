@@ -1,0 +1,16 @@
+{
+  "description": "US diner: sales tax added on top, handwritten tip and total, suggested-tip table to ignore",
+  "sourceLanguage": "auto",
+  "targetLanguage": "en",
+  "expect": {
+    "merchantIncludes": "corner diner",
+    "date": "2026-09-14",
+    "currency": "USD",
+    "detectedLanguage": "en",
+    "total": "52.09",
+    "itemAmounts": ["14.50", "11.00", "8.50", "6.50"],
+    "lineAmounts": { "tax": ["3.59"], "tip": ["8.00"] },
+    "itemNamesInclude": ["burger", "salad", "fries", "tea"],
+    "reconciles": true
+  }
+}

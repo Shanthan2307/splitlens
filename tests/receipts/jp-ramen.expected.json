@@ -1,0 +1,16 @@
+{
+  "description": "Japanese ramen shop: 内税 (tax included), Reiwa-era date, yen with thousands commas, change lines to ignore",
+  "sourceLanguage": "auto",
+  "targetLanguage": "en",
+  "expect": {
+    "merchantIncludes": "一番",
+    "date": "2026-10-05",
+    "currency": "JPY",
+    "detectedLanguage": "ja",
+    "total": "2660",
+    "itemAmounts": ["980", "480", "1200"],
+    "lineAmounts": { "tax": [] },
+    "itemNamesInclude": ["ramen", "gyoza", "beer"],
+    "reconciles": true
+  }
+}

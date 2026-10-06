@@ -1,0 +1,16 @@
+{
+  "description": "German café: decimal commas, VAT 19%/7% included in prices, a line discount, cash/change lines to ignore",
+  "sourceLanguage": "auto",
+  "targetLanguage": "en",
+  "expect": {
+    "merchantIncludes": "sonnenschein",
+    "date": "2026-10-03",
+    "currency": "EUR",
+    "detectedLanguage": "de",
+    "total": "15.90",
+    "itemAmounts": ["6.80", "3.90", "3.00", "2.20"],
+    "lineAmounts": { "tax": [] },
+    "itemNamesInclude": ["cappuccino", "pretzel", "cheesecake", "water"],
+    "reconciles": true
+  }
+}
