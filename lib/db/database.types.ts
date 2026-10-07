@@ -1219,6 +1219,11 @@ export type Database = {
         Args: { p_deleted: boolean; p_settlement_id: string };
         Returns: undefined;
       };
+      splitwise_link_account: {
+        Args: { p_splitwise_user_id: number; p_user: string };
+        Returns: number;
+      };
+      splitwise_unlink_account: { Args: { p_user: string }; Returns: undefined };
       update_group: { Args: { p_group_id: string; p_patch: Json }; Returns: undefined };
     };
     Enums: {

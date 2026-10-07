@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import { AccountForm } from "@/components/account/account-form";
 import { PageHeader } from "@/components/shell/page-header";
+import { SplitwiseCard } from "@/components/splitwise/splitwise-card";
 import { requireUser } from "@/lib/auth";
 import { isCurrencyCode } from "@/lib/currencies";
 import { getProfile } from "@/lib/db/profiles";
+import { getConnectionStatus } from "@/lib/db/splitwise";
+import { splitwiseConfig } from "@/lib/env.server";
 import { isLanguageTag } from "@/lib/languages";
 
 export const metadata: Metadata = { title: "Account · SplitLens" };
 
 export default async function AccountPage() {
   const { user, supabase } = await requireUser();
-  const profile = await getProfile(supabase, user.id);
+  const [profile, connection] = await Promise.all([getProfile(supabase, user.id), getConnectionStatus(supabase, user.id)]);
 
   return (
     <>
@@ -26,6 +29,7 @@ export default async function AccountPage() {
           paypalUsername: profile.paypal_username ?? "",
         }}
       />
+      <SplitwiseCard configured={splitwiseConfig() !== null} connection={connection} />
     </>
   );
 }
