@@ -13,7 +13,9 @@ import {
   type SwUser,
 } from "./schemas";
 
-export const SPLITWISE_ORIGIN = "https://secure.splitwise.com";
+/** SPLITWISE_DEV_ORIGIN points at a local fake Splitwise for end-to-end tests; ignored in production builds. */
+export const SPLITWISE_ORIGIN =
+  (process.env.NODE_ENV !== "production" && process.env.SPLITWISE_DEV_ORIGIN) || "https://secure.splitwise.com";
 const API = `${SPLITWISE_ORIGIN}/api/v3.0`;
 const id = z.number().int();
 

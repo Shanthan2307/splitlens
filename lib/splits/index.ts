@@ -76,3 +76,11 @@ export { EXACT_SIMPLIFY_LIMIT, simplifyDebts } from "./simplify";
 export { BASIS_POINTS_100_PERCENT, computeSplit, type SplitInput, type SplitResult } from "./split";
 export type { Debt, ParticipantAmount, ParticipantId } from "./types";
 
+export {
+  convertSplitwiseExpense,
+  parseSplitwiseAmount,
+  toSplitwiseUsers,
+  type ConvertedSplitwiseExpense,
+  type SplitwiseAmount,
+  type SplitwiseShareInput,
+} from "./splitwise";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { redeemInviteAction } from "@/app/(app)/invite/[token]/actions";
+import { redeemFriendInviteAction, redeemInviteAction } from "@/app/(app)/invite/[token]/actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -55,6 +55,32 @@ export function InviteJoin({
       )}
       <Button onClick={join} disabled={pending} className="w-full">
         {pending ? "Joining…" : "Join group"}
+      </Button>
+    </div>
+  );
+}
+
+export function FriendInviteAccept({ token, name }: { token: string; name: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="space-y-3">
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+      <Button
+        className="w-full"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            const result = await redeemFriendInviteAction({ token });
+            if (result && !result.ok) setError(result.error);
+          })
+        }
+      >
+        {pending ? "Adding…" : `Add ${name} as a friend`}
       </Button>
     </div>
   );

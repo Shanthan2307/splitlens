@@ -1202,6 +1202,7 @@ export type Database = {
       delete_comment: { Args: { p_comment_id: string }; Returns: undefined };
       delete_group: { Args: { p_group_id: string }; Returns: undefined };
       get_invite: { Args: { p_token: string }; Returns: Json };
+      redeem_friend_invite: { Args: { p_token: string }; Returns: string };
       redeem_invite: { Args: { p_claim_member_id?: string; p_token: string }; Returns: string };
       remove_group_member: { Args: { p_member_id: string }; Returns: undefined };
       respond_friend_request: {
@@ -1219,9 +1220,18 @@ export type Database = {
         Args: { p_deleted: boolean; p_settlement_id: string };
         Returns: undefined;
       };
+      splitwise_import_expenses: {
+        Args: { p_expenses: Json; p_group_id: string; p_people: Json; p_user: string };
+        Returns: Json;
+      };
+      splitwise_import_group: { Args: { p_group: Json; p_user: string }; Returns: Json };
       splitwise_link_account: {
         Args: { p_splitwise_user_id: number; p_user: string };
         Returns: number;
+      };
+      splitwise_log_import: {
+        Args: { p_group_id: string; p_summary: Json; p_user: string };
+        Returns: undefined;
       };
       splitwise_unlink_account: { Args: { p_user: string }; Returns: undefined };
       update_group: { Args: { p_group_id: string; p_patch: Json }; Returns: undefined };

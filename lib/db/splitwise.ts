@@ -1,4 +1,4 @@
-import { dbError, type DbClient } from "./client";
+import { dbError, type DbClient, type Json } from "./client";
 
 /**
  * Splitwise data layer. Functions taking `admin` need the service-role client: token
@@ -115,4 +115,88 @@ export async function linkSplitwiseAccount(admin: DbClient, userId: string, spli
 export async function unlinkSplitwiseAccount(admin: DbClient, userId: string) {
   const { error } = await admin.rpc("splitwise_unlink_account", { p_user: userId });
   if (error) throw dbError("Could not disconnect Splitwise", error);
+}
+
+// ------------------------------------------------------------------- import
+
+/**
+ * Which Splitwise people already have SplitLens accounts (by verified Splitwise id or email).
+ * Admin lookup that returns only booleans keyed by Splitwise id, never profile data.
+ */
+export async function registeredSplitwisePeople(
+  admin: DbClient,
+  people: readonly { splitwise_user_id: number; email: string | null }[],
+): Promise<Set<number>> {
+  const ids = people.map((p) => p.splitwise_user_id);
+  const emails = [...new Set(people.flatMap((p) => (p.email ? [p.email.toLowerCase()] : [])))];
+  const [byId, byEmail] = await Promise.all([
+    ids.length ? admin.from("profiles").select("splitwise_user_id").in("splitwise_user_id", ids) : { data: [], error: null },
+    emails.length ? admin.from("profiles").select("email").in("email", emails) : { data: [], error: null },
+  ]);
+  if (byId.error) throw dbError("Could not match Splitwise people", byId.error);
+  if (byEmail.error) throw dbError("Could not match Splitwise people", byEmail.error);
+  const linked = new Set(byId.data.map((r) => Number(r.splitwise_user_id)));
+  const registeredEmails = new Set(byEmail.data.map((r) => r.email?.toLowerCase()));
+  return new Set(
+    people.filter((p) => linked.has(p.splitwise_user_id) || (p.email && registeredEmails.has(p.email.toLowerCase()))).map((p) => p.splitwise_user_id),
+  );
+}
+
+/** SplitLens group ids for Splitwise groups the user is already a member of (user client: RLS). */
+export async function importedGroups(db: DbClient, splitwiseGroupIds: readonly number[]): Promise<Map<number, string>> {
+  if (splitwiseGroupIds.length === 0) return new Map();
+  const { data, error } = await db
+    .from("groups")
+    .select("id, splitwise_group_id")
+    .in("splitwise_group_id", [...splitwiseGroupIds])
+    .is("deleted_at", null);
+  if (error) throw dbError("Could not load imported groups", error);
+  return new Map(data.map((g) => [Number(g.splitwise_group_id), g.id]));
+}
+
+export type ImportedGroup = { groupId: string; created: boolean; members: { splitwiseUserId: number; memberId: string; registered: boolean }[] };
+
+export async function importGroup(admin: DbClient, userId: string, payload: Json): Promise<ImportedGroup> {
+  const { data, error } = await admin.rpc("splitwise_import_group", { p_user: userId, p_group: payload });
+  if (error) throw dbError("Could not import group", error);
+  const d = data as { group_id: string; created: boolean; members: { splitwise_user_id: number; member_id: string; registered: boolean }[] };
+  return {
+    groupId: d.group_id,
+    created: d.created,
+    members: d.members.map((m) => ({ splitwiseUserId: Number(m.splitwise_user_id), memberId: m.member_id, registered: m.registered })),
+  };
+}
+
+export type ImportCounts = {
+  created: number;
+  payments: number;
+  existing: number;
+  deleted: number;
+  skipped: number;
+  comments: number;
+  unresolved: number[];
+};
+
+export async function importExpenses(
+  admin: DbClient,
+  userId: string,
+  groupId: string | null,
+  people: Json,
+  expenses: Json,
+): Promise<ImportCounts> {
+  const { data, error } = await admin.rpc("splitwise_import_expenses", {
+    p_user: userId,
+    // null = friend-only expenses (generated types don't mark uuid args nullable).
+    p_group_id: groupId as string,
+    p_people: people,
+    p_expenses: expenses,
+  });
+  if (error) throw dbError("Could not import expenses", error);
+  const d = data as Omit<ImportCounts, "unresolved"> & { unresolved: (number | string)[] };
+  return { ...d, unresolved: d.unresolved.map(Number) };
+}
+
+export async function logImport(admin: DbClient, userId: string, groupId: string | null, summary: Json) {
+  const { error } = await admin.rpc("splitwise_log_import", { p_user: userId, p_group_id: groupId as string, p_summary: summary });
+  if (error) throw dbError("Could not record import", error);
 }

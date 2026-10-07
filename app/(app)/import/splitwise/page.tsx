@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/shell/page-header";
+import { ImportWizard } from "@/components/splitwise/import-wizard";
 import { SplitwiseCard } from "@/components/splitwise/splitwise-card";
 import { requireUser } from "@/lib/auth";
 import { getConnectionStatus } from "@/lib/db/splitwise";
 import { splitwiseConfig } from "@/lib/env.server";
+
+// Server actions on this page page through Splitwise; give them room.
+export const maxDuration = 60;
 
 export const metadata: Metadata = { title: "Import from Splitwise · SplitLens" };
 
@@ -32,7 +36,14 @@ export default async function ImportSplitwisePage({
           {notice}
         </p>
       )}
-      <SplitwiseCard configured={configured} connection={connection} />
+      {configured && connection && connection.syncError !== "reconnect" ? (
+        <>
+          <ImportWizard />
+          <SplitwiseCard configured={configured} connection={connection} hideImport />
+        </>
+      ) : (
+        <SplitwiseCard configured={configured} connection={connection} />
+      )}
     </>
   );
 }

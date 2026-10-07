@@ -6,7 +6,15 @@ import type { ConnectionStatus } from "@/lib/db/splitwise";
 import { DisconnectSplitwiseButton } from "./disconnect-button";
 
 /** Account settings: connect, open the importer, or disconnect. */
-export function SplitwiseCard({ configured, connection }: { configured: boolean; connection: ConnectionStatus | null }) {
+export function SplitwiseCard({
+  configured,
+  connection,
+  hideImport = false,
+}: {
+  configured: boolean;
+  connection: ConnectionStatus | null;
+  hideImport?: boolean;
+}) {
   return (
     <Card className="mt-6">
       <CardHeader>
@@ -27,9 +35,11 @@ export function SplitwiseCard({ configured, connection }: { configured: boolean;
         <CardContent className="flex flex-wrap items-center gap-2">
           {connection && connection.syncError !== "reconnect" ? (
             <>
-              <Button asChild>
-                <Link href="/import/splitwise">Import from Splitwise</Link>
-              </Button>
+              {!hideImport && (
+                <Button asChild>
+                  <Link href="/import/splitwise">Import from Splitwise</Link>
+                </Button>
+              )}
               <DisconnectSplitwiseButton />
             </>
           ) : (
