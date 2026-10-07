@@ -1,4 +1,4 @@
-import { Plus, UserPlus, Users } from "lucide-react";
+import { ArrowRightLeft, Plus, UserPlus, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExpenseDialog } from "@/components/expenses/expense-dialog";
@@ -12,6 +12,7 @@ import { requireUser } from "@/lib/auth";
 import { listFriendships } from "@/lib/db/friends";
 import { loadUserLedger } from "@/lib/db/ledger";
 import { getMe } from "@/lib/db/me";
+import { splitwiseConfig } from "@/lib/env.server";
 import { balanceSummary, friendBalances, netBalances, participantBalance, userDebts } from "@/lib/splits";
 import { cn } from "@/lib/utils";
 import { postTargets } from "@/lib/db/splitwise";
@@ -66,6 +67,7 @@ export default async function DashboardPage() {
     const myMemberId = Object.keys(g.memberUsers).find((m) => g.memberUsers[m] === user.id);
     return { id: g.groupId, name: g.name, balances: myMemberId ? participantBalance(netBalances(g.entries), myMemberId) : {} };
   });
+  const splitwiseReady = splitwiseConfig() !== null;
   const context = {
     ...friendExpenseContext(me, friendships.friends, [], me.defaultCurrency),
     splitwise: await postTargets(supabase, user.id, { userIds: friendships.friends.map((f) => f.id) }),
@@ -92,8 +94,19 @@ export default async function DashboardPage() {
 
       {isNew ? (
         <EmptyState title="Welcome to SplitLens">
+          {splitwiseReady && (
+            <span className="mx-auto mt-4 block max-w-sm rounded-lg border bg-background p-4 text-left">
+              <span className="flex items-center gap-2 font-medium text-foreground">
+                <ArrowRightLeft className="size-4" aria-hidden /> Coming from Splitwise?
+              </span>
+              <span className="mt-1 block">Bring your groups, friends, balances and history over in a minute.</span>
+              <Button asChild className="mt-3 w-full">
+                <Link href="/import/splitwise">Import from Splitwise</Link>
+              </Button>
+            </span>
+          )}
           <span className="mt-4 flex flex-wrap justify-center gap-2">
-            <Button asChild>
+            <Button asChild variant={splitwiseReady ? "outline" : "default"}>
               <Link href="/groups">
                 <Users aria-hidden />
                 Create a group
