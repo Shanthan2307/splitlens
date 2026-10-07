@@ -34,15 +34,35 @@ or a password manager.
 - [ ] `anon` / publishable key (public)
 - [ ] `service_role` / secret key (server-only, never in client code)
 
-**Apply the schema** (from the repo root):
+**Apply the schema** (from the repo root). Run these one at a time; zsh doesn't treat
+pasted `# …` text as comments, so the commands below deliberately have none:
 ```bash
-npx supabase login                       # opens the browser
-npx supabase link --project-ref <ref>    # asks for the database password
-npx supabase db push --dry-run           # review: 10 migrations
-npm run db:push
-SUPABASE_PROJECT_ID=<ref> npm run db:types && git diff --exit-code lib/db/database.types.ts
+npx supabase login
 ```
-The last command should show no diff (production schema = local schema).
+```bash
+npx supabase link --project-ref <ref>
+```
+```bash
+npx supabase db push --dry-run
+```
+The dry run should list 10 migrations. Then:
+```bash
+npm run db:push
+```
+To compare production types with local, generate them and inspect the diff. Expect only
+generator-version noise (`PostgrestVersion`, `Json` vs `NonNullable<Json>`, line wrapping);
+then restore the committed file:
+```bash
+SUPABASE_PROJECT_ID=<ref> npm run db:types && git diff --stat lib/db/database.types.ts
+```
+```bash
+git checkout -- lib/db/database.types.ts
+```
+
+> **Status (2026-10-06):** done for `splitlens` (`lkbyryjwsxycsrtcivka`, us-west-2). All 10 migrations
+> applied and verified: 20 tables, all RLS-enabled, no `anon` grants, no TRUNCATE/TRIGGER/REFERENCES,
+> 4 buckets (avatars/group-covers public, receipts/attachments private), 10 realtime tables.
+> Vercel Function Region for us-west-2: **pdx1** (Portland).
 
 **Verify in the dashboard**
 - [ ] Table Editor: all 20 `public` tables show **RLS enabled**.
@@ -99,9 +119,10 @@ The last command should show no diff (production schema = local schema).
 - [ ] Create a workspace `splitlens-prod` (keeps billing and limits separate).
 - [ ] Create an API key in it. Copy it straight into Vercel (step 6), don't store it anywhere else.
 - [ ] Set a monthly spend limit for the workspace. The app also caps each user at 10 scans per 10 minutes and 100 per day.
-- [ ] Optional: run the receipt evals once against the real model (costs a few cents):
+- [ ] Optional: run the receipt evals once against the real model (costs a few cents). Put the key
+  in `.env.local` as `ANTHROPIC_API_KEY=…` (gitignored), then:
   ```bash
-  ANTHROPIC_API_KEY=… npm run eval:receipts
+  npm run eval:receipts
   ```
 
 ## 5. Email provider
