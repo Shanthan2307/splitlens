@@ -126,5 +126,18 @@
   }
   html {
     @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Focused inputs scroll clear of the sticky header. */
+    scroll-padding-top: 4.5rem;
+  }
+  /* No double-tap-zoom delay on buttons and links. */
+  a, button, [role="button"], label, summary {
+    touch-action: manipulation;
+  }
+  /* Pull-to-refresh inside an open sheet would reload and lose the form. */
+  [data-slot="dialog-content"], [data-slot="alert-dialog-content"] {
+    overscroll-behavior: contain;
   }
 }

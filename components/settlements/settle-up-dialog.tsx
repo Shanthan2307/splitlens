@@ -171,7 +171,7 @@ function SettleUpForm({
 
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col" noValidate>
-      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
+      <div className="flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4">
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1 space-y-1">
             <Label className="text-xs text-muted-foreground">Paid by</Label>

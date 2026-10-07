@@ -249,7 +249,7 @@ export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, init
 
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col" noValidate>
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
         {friendMode && (
           <section className="space-y-2">
             <Label>With you and</Label>

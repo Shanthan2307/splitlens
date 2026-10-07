@@ -35,7 +35,7 @@ export default async function AppLayout({
         </aside>
 
         <div className="flex min-w-0 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:justify-end">
+          <header className="sticky top-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center pt-[env(safe-area-inset-top)] justify-between border-b bg-background/95 px-4 backdrop-blur md:justify-end">
             <Link
               href="/dashboard"
               className="text-lg font-semibold tracking-tight md:hidden"
@@ -48,7 +48,7 @@ export default async function AppLayout({
               avatarUrl={profile.avatar_url}
             />
           </header>
-          <main className="mx-auto w-full max-w-4xl flex-1 p-4 pb-24 md:p-8">
+          <main className="mx-auto w-full max-w-4xl flex-1 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-8">
             {children}
           </main>
         </div>
