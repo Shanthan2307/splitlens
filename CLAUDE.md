@@ -44,7 +44,9 @@ app/
     activity              activity feed (?group= filter, ?before= cursor pagination)
     expenses/[id]         expense detail: payers, shares, items, notes, attachments, comments (realtime), edit history
     settlements/[id]      payment detail: edit, delete/undo, comments, history
-    invite/[token]        join a group via link, optionally claiming a placeholder
+    invite/[token]        join a group via link (optionally claiming a placeholder), or accept a friend invite
+    import/splitwise      Splitwise import wizard (connect, pick groups/friends, progress) + actions
+  api/splitwise/          OAuth connect + callback route handlers (state cookie, token exchange)
     */actions.ts          server actions (Zod → lib/splits → lib/db), return ActionResult, never throw
   login/                  sign-in page + server actions (Google OAuth, magic link)
   auth/callback|confirm/  OAuth code exchange / magic-link token_hash verification
@@ -59,6 +61,7 @@ components/
   settlements/            SettleUpDialog (+ Venmo/PayPal links), method mapping, server-side dialog defaults
   comments/               realtime comment thread
   activity/               describeActivity (payload → sentence + my impact), feed, group filter
+  splitwise/              import wizard, Account card, disconnect, share (Web Share API → clipboard)
   soft-delete-button.tsx  delete with Undo toast / Restore, for expenses and payments
   <feature>/              feature components (no money math, no direct DB access)
 lib/
@@ -85,12 +88,16 @@ lib/
     balances.ts           netBalances, pairwiseDebts, remapDebts, friendBalances, totalBalance
     simplify.ts           simplifyDebts (minimum transfers)
     group-debts.ts        groupDebts(entries, { simplify })
+    splitwise.ts          Splitwise decimal strings ↔ minor units, per-person rounding reconciliation
     index.ts              public API — import from "@/lib/splits"
   validation/             shared Zod schemas (+ result.ts ActionResult)
   categories.ts           expense categories (id, label, group, lucide icon name)
   payments/deep-links.ts  Venmo (USD only) and PayPal.me URL builders
   ai/                     anthropic.ts (client), receipt-prompt.ts (cached system prompt), receipt-parser.ts
                           (structured output + 1 retry), receipt-eval.ts (sample comparison)
+  splitwise/              api.ts (OAuth + v3.0 client, 429/5xx backoff, 401 refresh), schemas.ts (Zod), crypto.ts
+                          (AES-256-GCM tokens), session.ts (splitwiseFor: decrypt/refresh), mapping.ts (pure
+                          Splitwise → RPC payloads), importer.ts (overview + paged import), post.ts (create_expense)
   rate-limit.ts           per-user receipt scan limits
   utils.ts                shadcn `cn` helper
 supabase/
@@ -125,7 +132,7 @@ middleware.ts             refreshes Supabase auth cookies on each request
 
 ## Environment
 
-Copy `.env.example` → `.env.local` (local values from `npx supabase status`). Google OAuth creds go in `supabase/.env` (read by the Supabase CLI). Public: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`. Server-only: `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` (optional locally if signed in via `ant auth login`; required in prod), `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), `RECEIPT_PARSER_EFFORT` (optional). Tooling: `SUPABASE_PROJECT_ID`.
+Copy `.env.example` → `.env.local` (local values from `npx supabase status`). Google OAuth creds go in `supabase/.env` (read by the Supabase CLI). Public: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`. Server-only: `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY` (optional locally if signed in via `ant auth login`; required in prod), `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), `RECEIPT_PARSER_EFFORT` (optional), `SPLITWISE_CLIENT_ID` / `SPLITWISE_CLIENT_SECRET` / `SPLITWISE_TOKEN_KEY` (optional; integration hidden until all set), `SPLITWISE_DEV_ORIGIN` (non-production only: point at a fake Splitwise for E2E tests). Tooling: `SUPABASE_PROJECT_ID`.
 
 ## Progress
 
@@ -160,7 +167,7 @@ Copy `.env.example` → `.env.local` (local values from `npx supabase status`). 
 
 **Decisions**
 - **Participants**: payers/shares/item_assignments/settlements reference EITHER `member_id` (group expenses; supports placeholders with no account) OR `user_id` (friend-only expenses, `group_id` null). DB CHECK enforces exactly one. Cross-group per-user balances join member → user.
-- Non-group participants must be real users. Phase 9 import of Splitwise friends who aren't on SplitLens needs a decision (e.g., invite flow).
+- Non-group participants must be real users. Phase 9 resolved this with friend invite links: Splitwise friends not on SplitLens are invited, and their balance is imported after they join.
 - `expense_shares.owed_minor` is the final amount owed. `split_input` (bigint) records the raw input: minor units for exact/adjustment, basis points for percentage, shares ×10000. RPC must enforce sum(owed) = total = sum(paid).
 - Weights are integers (`item_assignments.share_weight`, `group_members.default_split_weight`). Only `exchange_rates.rate` is `numeric(24,12)`; conversion math goes in lib/splits.
 - Soft delete: `is_deleted` + `deleted_at` (CHECK keeps them consistent) on expenses/settlements; no DELETE policy on either. `groups.deleted_at` for groups.
@@ -307,3 +314,30 @@ Copy `.env.example` → `.env.local` (local values from `npx supabase status`). 
 **Deploy status (2026-10-06)**: code pushed to https://github.com/Shanthan2307/splitlens (`main`, public repo; secret scan clean). Production Supabase `splitlens` (`lkbyryjwsxycsrtcivka`, us-west-2 → Vercel region pdx1) linked; all 10 migrations applied and verified (RLS on all 20 tables, no anon grants, buckets, realtime). Remaining: Auth URL config/SMTP/templates/Google provider, Vercel project + env vars + domain (docs/DEPLOY.md steps 2–7). Note: `supabase db push` works without the DB password (the CLI uses a temporary login role). Hosted type generation differs only cosmetically from local; keep the committed local-generated types.
 
 Earlier status: not deployed. The Supabase and Vercel CLIs aren't logged in on this machine, there's no hosted Supabase project or Vercel project yet, and no git remote. `docs/DEPLOY.md` has the full step-by-step checklist (Supabase project + migrations, Auth URL config, SMTP, email templates, Google OAuth, Anthropic workspace key, Vercel env vars/region/domain, smoke test).
+
+### Phase 9 — Splitwise import and sync ✅ (+ mobile pass)
+
+Shipped in stages, each pushed to `main`: mobile/Android pass, connect, import wizard, post to Splitwise, onboarding. Migrations `20261007000100…0300` are applied to production. The integration is live once the three `SPLITWISE_*` env vars are set on Vercel (docs/DEPLOY.md step 4b).
+
+**Connect** (`/api/splitwise/connect` → Splitwise → `/api/splitwise/callback`): random state in an httpOnly cookie (path `/api/splitwise`, 10 min, timing-safe compare), code exchange, then `get_current_user` with the new token, so the Splitwise id is verified. `splitwise_link_account` stores it on `profiles.splitwise_user_id` (one SplitLens account per Splitwise account) and claims placeholders imported for that id. Tokens are AES-256-GCM encrypted (`v1.<iv>.<tag>.<ct>`) in `splitwise_connections`. Splitwise access tokens normally don't expire. If `expires_in`/`refresh_token` ever come back, they're refreshed 60 s before expiry or on a 401; otherwise a 401 marks `sync_error = 'reconnect'` and the UI asks to reconnect. Disconnect deletes tokens and the verified id; imported data stays.
+
+**Import** (`/import/splitwise`): the overview lists Splitwise groups and friends with who's already on SplitLens (verified Splitwise id, then email; admin lookup returns booleans only). The client drives one server action per step (group members, then pages of 40 expenses, or 20 with comments), so progress is live and each call stays well under the function time limit (`maxDuration` 60). Rate limits: the API client waits out `Retry-After` up to 20 s with up to 4 retries; longer waits come back as `{ rateLimited, retryAfter }` and the wizard shows a countdown, then repeats the same page.
+- Groups: `splitwise_import_group` creates the group on first import (`groups.splitwise_group_id` is unique, so anyone else in that Splitwise group maps to the same SplitLens group and joins it). Members are matched by verified Splitwise id, then email; everyone else becomes a placeholder with `splitwise_user_id` (+ email). Placeholders are auto-claimed on signup with that email (existing trigger), on connecting Splitwise, or via an invite link. After import the wizard offers "Invite N people" (group link through the Web Share sheet).
+- Friends: friend-only expenses need real accounts, so only friends already on SplitLens can be imported. Others get a **friend invite link** (`invite_links` with `group_id` null → `get_invite` kind `friend`, `redeem_friend_invite`); once they join, re-running the import brings the balance over. Expenses that include a third person not on SplitLens are skipped and reported as "unresolved".
+- `splitwise_import_expenses` keys everything by Splitwise ids: re-runs report "already here", never duplicate; expenses deleted in Splitwise are soft-deleted here (tombstones are sent); payments become settlements (method `other`); comments are deduplicated by `splitwise_comment_id`, System comments are dropped, and authors not on SplitLens keep their name as a prefix. Imported expenses are `split_type = 'exact'` with `split_input` = owed minor units. One `splitwise_import_completed` activity per finished group/friend (not per expense).
+- Money: `lib/splits/splitwise.ts` parses Splitwise decimal strings (lenient about trailing digits, half away from zero), drops zero shares, and absorbs up to 1 unit/person of rounding (largest first). Bigger mismatches skip the expense (`invalid`).
+
+**Also post to Splitwise**: the expense form shows the toggle for new expenses when you're connected and the group has a `splitwise_group_id` (or it's friend-only → Splitwise `group_id` 0). It's disabled with a reason when someone isn't on Splitwise (`splitwise_participants`: member's imported id or linked account) or for refunds. The choice is remembered in localStorage. After `save_expense`, `create_expense` gets exact `paid_share`/`owed_share` per user (any split type works), and `splitwise_set_expense_id` stores the id. A Splitwise failure keeps the SplitLens expense and shows a warning toast.
+
+**Onboarding**: the dashboard's first-run state leads with "Coming from Splitwise? Import" when configured.
+
+**Mobile (Android)**: ≥40 px touch targets on coarse pointers (`pointer-coarse:min-h-10`, so explicit sizes never shrink; small icon buttons get an invisible `after:` hit area); viewport `interactive-widget=resizes-content` (Android keyboard resizes the layout, so 100dvh sheets keep Save visible), `viewport-fit=cover` with safe-area padding; web app manifest + icons (`app/manifest.ts`, `public/icon-*.png`); no pull-to-refresh inside open dialogs; `touch-action: manipulation`.
+
+**Security decisions**
+- Every import/link/set-id RPC is `service_role` only and impersonates the user (`private.as_user` sets `request.jwt.claim(s)` for the transaction, so `auth.uid()`-based helpers and activity attribution work). A client could otherwise pass a fabricated `splitwise_group_id` and join someone else's imported group. Data reaching these RPCs was fetched from Splitwise with the user's own token.
+- Email matching auto-adds registered users to imported groups and befriends them, same as `add_group_member` (and Splitwise). No new consent surface.
+- `/auth/confirm` also accepts `?code=` (PKCE) so Supabase's default email template works before custom SMTP is set up.
+
+**Testing**: 41 pgTAP assertions in `supabase/tests/splitwise.test.sql` (128 DB tests in total). Unit tests cover the API client (backoff, refresh, errors), crypto, OAuth state, env and mappers. E2E was verified locally against a fake Splitwise (`SPLITWISE_DEV_ORIGIN`): connect, 47-expense group import with a forced 25 s rate limit, re-run idempotency, balances, friend invite, post to Splitwise. **Not yet verified against the real Splitwise API** (no app credentials during development). Do the DEPLOY.md step 7 Splitwise checks after setting the env vars.
+
+**Open items**: background/scheduled sync (re-running the wizard syncs for now); updating or deleting a posted expense on Splitwise (posting is create-only); Splitwise preview deployments (one callback URL per app).

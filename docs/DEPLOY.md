@@ -85,15 +85,34 @@ git checkout -- lib/db/database.types.ts
 - [ ] Email OTP expiration: `3600` seconds. OTP length: `6`.
 - [ ] Google: **enabled**. Paste Client ID and Client Secret (from step 3). "Skip nonce check": **off**. The callback URL shown here is `https://<ref>.supabase.co/auth/v1/callback`.
 
-**Authentication → Emails → SMTP Settings**: required for real users
-- [ ] Enable custom SMTP with your provider (host, port, user, password). Sender `no-reply@<domain>`, name `SplitLens`.
-- [ ] At your email provider: verify `<domain>` (SPF, DKIM, DMARC DNS records).
-  Without custom SMTP, Supabase's built-in mailer only delivers to your project's team members and is heavily rate-limited.
+**Authentication → Emails → SMTP Settings**: required for real users (see "Magic links with Resend" below)
+- [ ] Enable custom SMTP with your provider. Sender `no-reply@<domain>`, name `SplitLens`.
+  Without custom SMTP, Supabase's built-in mailer only delivers to your project's team members, is heavily
+  rate-limited, and the email templates can't be edited. The app still works with the default template, but
+  a link then only opens in the browser that requested it.
 
-**Authentication → Emails → Templates**
+**Authentication → Emails → Templates** (editable once custom SMTP is on)
 - [ ] **Magic Link**: Subject `Your SplitLens sign-in link`. Body: paste `supabase/templates/magic_link.html`.
 - [ ] **Confirm signup**: same subject and body (new users get this email instead of Magic Link).
-  The link uses `{{ .RedirectTo }}`, so it returns to the domain the user signed in from.
+  The link uses `{{ .RedirectTo }}`, so it returns to the domain the user signed in from, and works on any device.
+
+#### Magic links with Resend
+
+Resend only sends to other people from a **domain you've verified**. Its test sender
+(`onboarding@resend.dev`) delivers only to your own Resend account email, so get a domain first.
+
+1. [ ] resend.com → **Domains → Add domain**. Use a subdomain such as `mail.<domain>`.
+2. [ ] Add the DNS records Resend shows (MX + SPF TXT on `send.mail.<domain>`, DKIM TXT on
+   `resend._domainkey.mail.<domain>`) at your DNS provider, then click **Verify** (minutes, up to a few hours).
+   Recommended: a DMARC TXT on `_dmarc.<domain>` with `v=DMARC1; p=none;`.
+3. [ ] **API Keys → Create API key**: permission *Sending access*, limited to that domain. Copy it (shown once).
+4. [ ] Supabase → **Authentication → Emails → SMTP Settings → Enable custom SMTP**:
+   - Sender email `no-reply@mail.<domain>`, Sender name `SplitLens`
+   - Host `smtp.resend.com`, Port `465`, Username `resend`, Password = the API key
+   (Resend's dashboard also has a Supabase integration that fills these in.)
+5. [ ] Paste the templates (above), then **Authentication → Rate Limits** → raise "emails sent per hour".
+6. [ ] Test with an address that isn't a Supabase team member. If nothing arrives, check Resend → **Emails**
+   (delivery status) and the spam folder.
 
 **Authentication → Rate Limits**
 - [ ] After SMTP is configured, raise "emails sent per hour" (e.g. 100). Keep OTP/verification limits at defaults.
@@ -125,6 +144,23 @@ git checkout -- lib/db/database.types.ts
   npm run eval:receipts
   ```
 
+## 4b. Splitwise (optional: import and "Also post to Splitwise")
+
+The integration stays hidden until all three variables below are set.
+
+- [ ] secure.splitwise.com/apps → **Register your application**:
+  - Name `SplitLens`, homepage `https://<domain>`
+  - **Callback URL** `https://<domain>/api/splitwise/callback` (exactly; one per app, so Vercel preview
+    deployments can't connect. For local dev register a second app with
+    `http://localhost:3000/api/splitwise/callback` and put its keys in `.env.local`)
+- [ ] Copy **Consumer Key** → `SPLITWISE_CLIENT_ID` and **Consumer Secret** → `SPLITWISE_CLIENT_SECRET` (step 6).
+- [ ] Token encryption key, generated and piped straight into Vercel so it never appears on screen:
+  ```bash
+  openssl rand -base64 32 | tr -d '\n' | vercel env add SPLITWISE_TOKEN_KEY production
+  ```
+  Don't change it later: stored tokens would become unreadable (users would have to reconnect).
+- [ ] Redeploy. Account → Splitwise → **Connect Splitwise** should open Splitwise's consent screen.
+
 ## 5. Email provider
 
 - [ ] Verify the sending domain (DNS records from the provider).
@@ -148,6 +184,9 @@ git checkout -- lib/db/database.types.ts
 | `ANTHROPIC_API_KEY` | key from step 4 | Production (a separate key for Preview if wanted) | **yes** |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5-5` | Production, Preview | no |
 | `RECEIPT_PARSER_EFFORT` | leave unset (or `medium` for faster scans) | — | no |
+| `SPLITWISE_CLIENT_ID` | Consumer Key (step 4b) | Production | no |
+| `SPLITWISE_CLIENT_SECRET` | Consumer Secret (step 4b) | Production | **yes** |
+| `SPLITWISE_TOKEN_KEY` | `openssl rand -base64 32` (step 4b) | Production | **yes** |
 
 - [ ] Don't add `SUPABASE_PROJECT_ID` (local tooling only) or any Google/Splitwise secrets (those live in Supabase).
 - [ ] Settings → Deployment Protection: Vercel Authentication on for Previews (recommended).
@@ -171,6 +210,10 @@ git checkout -- lib/db/database.types.ts
 - [ ] Comment from two browsers at once; comments appear live.
 - [ ] Settle up; the dashboard and the activity feed update.
 - [ ] Invite link in a private window → sign in → join (claim a placeholder).
+- [ ] Splitwise: Account → Connect Splitwise → import a group with history; balances match Splitwise; run it
+  again and everything reports as "already here". Add an expense with "Also post to Splitwise"; it shows up in Splitwise.
+- [ ] Android phone (Chrome): ⋮ → **Add to Home screen**; it opens full-screen; the keyboard doesn't hide
+  the Save button in the add-expense sheet.
 - [ ] Supabase → Logs (API, Auth, Postgres) and Vercel → Logs: no errors.
 
 ## 8. After launch
