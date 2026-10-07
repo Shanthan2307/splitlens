@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -68,9 +69,21 @@ type Props = {
   /** Friend-only expense: pick which friends are involved. */
   friendMode: boolean;
   initial: ExpenseFormInitial;
+  /** Present when "Also post to Splitwise" can apply: participant id → Splitwise user id. */
+  splitwise?: { participants: Record<string, number> };
   onDone: (expenseId: string) => void;
   onCancel: () => void;
 };
+
+const POST_PREF_KEY = "splitlens:post-to-splitwise";
+
+function readPostPref(): boolean {
+  try {
+    return localStorage.getItem(POST_PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 const SPLIT_TYPES: { value: SplitType; label: string; hint: string }[] = [
   { value: "equal", label: "Equal", hint: "Split equally" },
@@ -98,7 +111,7 @@ function initialValues(split: DraftSplit): Record<ValueSplitType, Record<string,
   return { ...empty, [split.type]: Object.fromEntries(split.values.map((v) => [v.participantId, v.value])) };
 }
 
-export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, initial, onDone, onCancel }: Props) {
+export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, initial, splitwise, onDone, onCancel }: Props) {
   const [description, setDescription] = useState(initial.description);
   const [category, setCategory] = useState<CategoryId>(initial.category);
   const [date, setDate] = useState(initial.date ?? today);
@@ -120,6 +133,7 @@ export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, init
   const [values, setValues] = useState(() => initialValues(initial.split));
   const [lines, setLines] = useState<DraftLine[]>(initial.split.type === "itemized" ? initial.split.lines : []);
   const [receiptId, setReceiptId] = useState(initial.receiptId);
+  const [postToSplitwise, setPostToSplitwise] = useState(readPostPref);
   const [files, setFiles] = useState<File[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -173,6 +187,14 @@ export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, init
   ]);
 
   const preview = useMemo(() => buildExpense(draft), [draft]);
+  // Splitwise needs a matching account for everyone who paid or owes something.
+  const notOnSplitwise = useMemo(() => {
+    if (!splitwise || !preview.ok) return [];
+    const ids = new Set([...preview.expense.payers, ...preview.expense.shares].filter((p) => p.amount !== 0).map((p) => p.participantId));
+    return people.filter((p) => ids.has(p.id) && splitwise.participants[p.id] === undefined);
+  }, [splitwise, preview, people]);
+  const postBlocked = notOnSplitwise.length > 0 || (preview.ok && preview.expense.total < 0);
+  const willPost = Boolean(splitwise) && !expenseId && postToSplitwise && !postBlocked;
   // Per-person split amounts shouldn't vanish while the payer amounts are still being typed.
   const splitPreview = useMemo(
     () => (preview.ok ? preview : buildExpense({ ...draft, paidBy: { mode: "single", participantId: meId } })),
@@ -226,18 +248,20 @@ export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, init
         notes: notes.trim() || undefined,
         receiptId,
         draft,
+        postToSplitwise: willPost,
       });
       if (!result.ok) {
         setServerError(result.error);
         return;
       }
+      if (result.splitwise && !result.splitwise.ok) toast.warning(`Saved here, but not on Splitwise: ${result.splitwise.error}`);
       const failures: string[] = [];
       for (const file of files) {
         const uploaded = await uploadAttachment(result.expenseId, file);
         if (!uploaded.ok) failures.push(uploaded.error);
       }
       if (failures.length) toast.error(failures.join("\n"));
-      toast.success(expenseId ? "Expense updated" : "Expense added");
+      toast.success(expenseId ? "Expense updated" : result.splitwise?.ok ? "Expense added here and on Splitwise" : "Expense added");
       onDone(result.expenseId);
     });
   }
@@ -552,6 +576,33 @@ export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, init
           <Label htmlFor="notes">Notes</Label>
           <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} rows={3} />
         </div>
+
+        {splitwise && !expenseId && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+            <Label htmlFor="post-splitwise" className="flex-col items-start gap-0.5">
+              <span>Also post to Splitwise</span>
+              <span className="text-xs font-normal text-muted-foreground" id="post-splitwise-hint">
+                {notOnSplitwise.length > 0
+                  ? `${notOnSplitwise.map((p) => p.name).join(", ")} ${notOnSplitwise.length === 1 ? "isn't" : "aren't"} on Splitwise.`
+                  : preview.ok && preview.expense.total < 0
+                    ? "Splitwise doesn't support refunds."
+                    : "Adds the same expense and split on Splitwise."}
+              </span>
+            </Label>
+            <Switch
+              id="post-splitwise"
+              aria-describedby="post-splitwise-hint"
+              checked={postToSplitwise && !postBlocked}
+              disabled={postBlocked}
+              onCheckedChange={(on) => {
+                setPostToSplitwise(on);
+                try {
+                  localStorage.setItem(POST_PREF_KEY, on ? "1" : "0");
+                } catch {}
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <footer className="border-t bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">

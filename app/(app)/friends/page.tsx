@@ -14,6 +14,7 @@ import { listFriendships } from "@/lib/db/friends";
 import { loadUserLedger } from "@/lib/db/ledger";
 import { getMe } from "@/lib/db/me";
 import { friendBalances, userDebts } from "@/lib/splits";
+import { postTargets } from "@/lib/db/splitwise";
 
 export const metadata: Metadata = { title: "Friends · SplitLens" };
 
@@ -25,7 +26,10 @@ export default async function FriendsPage() {
     loadUserLedger(supabase, user.id),
   ]);
   const balances = friendBalances(user.id, userDebts(ledger.groups, ledger.direct));
-  const context = friendExpenseContext(me, friendships.friends, [], me.defaultCurrency);
+  const context = {
+    ...friendExpenseContext(me, friendships.friends, [], me.defaultCurrency),
+    splitwise: await postTargets(supabase, user.id, { userIds: friendships.friends.map((f) => f.id) }),
+  };
 
   return (
     <div className="space-y-8">

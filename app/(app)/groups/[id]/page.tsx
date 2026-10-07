@@ -18,6 +18,7 @@ import { requireUser } from "@/lib/auth";
 import { getGroup } from "@/lib/db/groups";
 import { loadGroupLedger } from "@/lib/db/ledger";
 import { groupDebts, netBalances, participantBalance } from "@/lib/splits";
+import { postTargets } from "@/lib/db/splitwise";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -45,7 +46,8 @@ export default async function GroupPage({
 
   const me = group.members.find((m) => m.userId === user.id);
   const names = Object.fromEntries(group.allMembers.map((m) => [m.memberId, m.userId === user.id ? "You" : m.name]));
-  const context = groupExpenseContext(group, user.id);
+  const baseContext = groupExpenseContext(group, user.id);
+  const context = baseContext && { ...baseContext, splitwise: await postTargets(supabase, user.id, { groupId: group.id }) };
   const settlePeople = group.members.map(toSettlePerson);
   const TypeIcon = GROUP_TYPE_META[group.type].icon;
 

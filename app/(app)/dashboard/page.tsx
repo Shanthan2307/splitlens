@@ -14,6 +14,7 @@ import { loadUserLedger } from "@/lib/db/ledger";
 import { getMe } from "@/lib/db/me";
 import { balanceSummary, friendBalances, netBalances, participantBalance, userDebts } from "@/lib/splits";
 import { cn } from "@/lib/utils";
+import { postTargets } from "@/lib/db/splitwise";
 
 export const metadata: Metadata = { title: "Dashboard · SplitLens" };
 
@@ -65,7 +66,10 @@ export default async function DashboardPage() {
     const myMemberId = Object.keys(g.memberUsers).find((m) => g.memberUsers[m] === user.id);
     return { id: g.groupId, name: g.name, balances: myMemberId ? participantBalance(netBalances(g.entries), myMemberId) : {} };
   });
-  const context = friendExpenseContext(me, friendships.friends, [], me.defaultCurrency);
+  const context = {
+    ...friendExpenseContext(me, friendships.friends, [], me.defaultCurrency),
+    splitwise: await postTargets(supabase, user.id, { userIds: friendships.friends.map((f) => f.id) }),
+  };
   const isNew = ledger.groups.length === 0 && friendships.friends.length === 0;
 
   return (

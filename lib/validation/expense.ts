@@ -46,6 +46,8 @@ export const saveExpenseSchema = z.object({
   notes: z.string().trim().max(2000).optional(),
   receiptId: id.optional(),
   draft: expenseDraftSchema,
+  /** New expenses only: also create it on Splitwise. */
+  postToSplitwise: z.boolean().optional(),
 });
 
 export type SaveExpenseInput = z.infer<typeof saveExpenseSchema>;

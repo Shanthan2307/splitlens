@@ -200,3 +200,45 @@ export async function logImport(admin: DbClient, userId: string, groupId: string
   const { error } = await admin.rpc("splitwise_log_import", { p_user: userId, p_group_id: groupId as string, p_summary: summary });
   if (error) throw dbError("Could not record import", error);
 }
+
+// --------------------------------------------------------------------- post
+
+export type SplitwiseTargets = { splitwiseGroupId: number | null; participants: Record<string, number> };
+
+/** Splitwise ids for a group's members, or for the user and their friends (friend-only expenses). */
+export async function splitwiseParticipants(
+  db: DbClient,
+  scope: { groupId: string } | { userIds: string[] },
+): Promise<SplitwiseTargets> {
+  const { data, error } = await db.rpc("splitwise_participants", {
+    p_group_id: ("groupId" in scope ? scope.groupId : null) as string,
+    p_user_ids: "userIds" in scope ? scope.userIds : [],
+  });
+  if (error) throw dbError("Could not load Splitwise participants", error);
+  const d = data as { splitwise_group_id: number | null; participants: Record<string, number | string> };
+  return {
+    splitwiseGroupId: d.splitwise_group_id === null ? null : Number(d.splitwise_group_id),
+    participants: Object.fromEntries(Object.entries(d.participants).map(([k, v]) => [k, Number(v)])),
+  };
+}
+
+/** What the expense form needs to offer "Also post to Splitwise", or undefined when it can't apply. */
+export async function postTargets(
+  db: DbClient,
+  userId: string,
+  scope: { groupId: string } | { userIds: string[] },
+): Promise<SplitwiseTargets | undefined> {
+  const connection = await getConnectionStatus(db, userId);
+  if (!connection || connection.syncError === "reconnect") return undefined;
+  const targets = await splitwiseParticipants(db, scope);
+  return targets.splitwiseGroupId === null ? undefined : targets;
+}
+
+export async function setSplitwiseExpenseId(admin: DbClient, userId: string, expenseId: string, splitwiseExpenseId: number) {
+  const { error } = await admin.rpc("splitwise_set_expense_id", {
+    p_user: userId,
+    p_expense_id: expenseId,
+    p_splitwise_expense_id: splitwiseExpenseId,
+  });
+  if (error) throw dbError("Could not link the Splitwise expense", error);
+}

@@ -15,6 +15,7 @@ export type ExpenseDialogProps = {
   meId: string;
   friendMode?: boolean;
   initial: ExpenseFormInitial;
+  splitwise?: { participants: Record<string, number> };
   /** Where to go after saving a new expense. Defaults to staying on the page. */
   navigateToNew?: boolean;
 };

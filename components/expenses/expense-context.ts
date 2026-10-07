@@ -13,6 +13,8 @@ export type ExpenseContext = {
   meId: string;
   friendMode: boolean;
   initial: ExpenseFormInitial;
+  /** Set by the page when "Also post to Splitwise" can apply (see postTargets). */
+  splitwise?: { participants: Record<string, number> };
 };
 
 const toFormPerson = (p: Person): FormPerson => ({ id: p.id, name: p.name, avatarUrl: p.avatarUrl });

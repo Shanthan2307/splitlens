@@ -1233,6 +1233,11 @@ export type Database = {
         Args: { p_group_id: string; p_summary: Json; p_user: string };
         Returns: undefined;
       };
+      splitwise_participants: { Args: { p_group_id: string; p_user_ids: string[] }; Returns: Json };
+      splitwise_set_expense_id: {
+        Args: { p_expense_id: string; p_splitwise_expense_id: number; p_user: string };
+        Returns: undefined;
+      };
       splitwise_unlink_account: { Args: { p_user: string }; Returns: undefined };
       update_group: { Args: { p_group_id: string; p_patch: Json }; Returns: undefined };
     };

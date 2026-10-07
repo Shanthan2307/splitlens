@@ -7,6 +7,9 @@ import { createAttachmentUpload, deleteAttachment, registerAttachment } from "@/
 import { userMessage } from "@/lib/db/client";
 import { saveExpense, setExpenseDeleted } from "@/lib/db/expenses";
 import { buildExpense } from "@/lib/splits";
+import { SplitwiseApiError, SplitwiseAuthError, SplitwiseRateLimitError } from "@/lib/splitwise/api";
+import { postExpenseToSplitwise, SplitwisePostError } from "@/lib/splitwise/post";
+import { SplitwiseNotConnectedError } from "@/lib/splitwise/session";
 import { attachmentRegisterSchema, attachmentUploadSchema, saveExpenseSchema } from "@/lib/validation/expense";
 import { firstIssue, type ActionResult } from "@/lib/validation/result";
 
@@ -18,7 +21,19 @@ function revalidateExpense(expenseId: string, groupId?: string | null) {
   revalidatePath("/dashboard");
 }
 
-export async function saveExpenseAction(input: unknown): Promise<ActionResult<{ expenseId: string }>> {
+function splitwiseFailure(error: unknown): string {
+  if (error instanceof SplitwisePostError) return error.message;
+  if (error instanceof SplitwiseNotConnectedError) return "Splitwise isn't connected.";
+  if (error instanceof SplitwiseAuthError) return "Reconnect Splitwise in Account settings.";
+  if (error instanceof SplitwiseRateLimitError) return "Splitwise is busy. Try again in a minute.";
+  if (error instanceof SplitwiseApiError) return error.message;
+  console.error("Post to Splitwise failed", error instanceof Error ? error.message : error);
+  return "Splitwise didn't accept it.";
+}
+
+export async function saveExpenseAction(
+  input: unknown,
+): Promise<ActionResult<{ expenseId: string; splitwise?: { ok: true } | { ok: false; error: string } }>> {
   const parsed = saveExpenseSchema.safeParse(input);
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) };
   const { draft, ...meta } = parsed.data;
@@ -26,9 +41,10 @@ export async function saveExpenseAction(input: unknown): Promise<ActionResult<{ 
   const built = buildExpense(draft);
   if (!built.ok) return { ok: false, error: built.message, field: built.field };
 
-  const { supabase } = await requireUser();
+  const { user, supabase } = await requireUser();
+  let expenseId: string;
   try {
-    const expenseId = await saveExpense(
+    expenseId = await saveExpense(
       supabase,
       {
         expenseId: meta.expenseId,
@@ -43,11 +59,30 @@ export async function saveExpenseAction(input: unknown): Promise<ActionResult<{ 
       },
       built.expense,
     );
-    revalidateExpense(expenseId, meta.groupId);
-    return { ok: true, expenseId };
   } catch (error) {
     return { ok: false, error: userMessage(error, "Could not save the expense. Try again.") };
   }
+
+  // The SplitLens expense is saved either way; a Splitwise failure is reported, not fatal.
+  let splitwise: { ok: true } | { ok: false; error: string } | undefined;
+  if (meta.postToSplitwise && !meta.expenseId) {
+    try {
+      await postExpenseToSplitwise(supabase, user.id, {
+        expenseId,
+        groupId: meta.groupId,
+        description: meta.description,
+        date: meta.date,
+        notes: meta.notes,
+        currency: draft.currency,
+        built: built.expense,
+      });
+      splitwise = { ok: true };
+    } catch (error) {
+      splitwise = { ok: false, error: splitwiseFailure(error) };
+    }
+  }
+  revalidateExpense(expenseId, meta.groupId);
+  return { ok: true, expenseId, splitwise };
 }
 
 const idSchema = z.uuid();
