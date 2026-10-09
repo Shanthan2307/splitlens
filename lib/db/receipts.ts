@@ -72,3 +72,36 @@ export async function completeReceipt(
   const { error } = await db.from("receipts").update(update).eq("id", receiptId);
   if (error) throw dbError("Could not save the receipt result", error);
 }
+
+export type ReceiptImage = {
+  id: string;
+  url: string;
+  mimeType: string;
+  merchantName: string | null;
+  receiptDate: string | null;
+  scannedAt: string;
+};
+
+/**
+ * The scanned receipt linked to an expense, with a 1-hour signed URL. RLS + the storage
+ * policy allow anyone who can see the expense; returns null if it's gone or not visible.
+ */
+export async function getReceiptImage(db: DbClient, receiptId: string): Promise<ReceiptImage | null> {
+  const { data, error } = await db
+    .from("receipts")
+    .select("id, storage_path, mime_type, merchant_name, receipt_date, created_at")
+    .eq("id", receiptId)
+    .maybeSingle();
+  if (error) throw dbError("Could not load the receipt", error);
+  if (!data) return null;
+  const signed = await db.storage.from("receipts").createSignedUrl(data.storage_path, 60 * 60);
+  if (signed.error || !signed.data) return null;
+  return {
+    id: data.id,
+    url: signed.data.signedUrl,
+    mimeType: data.mime_type,
+    merchantName: data.merchant_name,
+    receiptDate: data.receipt_date,
+    scannedAt: data.created_at,
+  };
+}

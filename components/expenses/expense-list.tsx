@@ -1,4 +1,4 @@
-import { Banknote } from "lucide-react";
+import { Banknote, ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/expenses/category-icon";
 import { Money } from "@/components/money";
@@ -101,7 +101,12 @@ function ExpenseRow({
         <DateCell date={e.date} />
         <CategoryIcon category={e.category} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{e.description}</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="truncate">{e.description}</span>
+            {e.receiptId && (
+              <ReceiptText className="size-3.5 shrink-0 text-muted-foreground" aria-label="Has a scanned receipt" role="img" />
+            )}
+          </span>
           <span className="block truncate text-xs text-muted-foreground">
             {payer} paid {formatMinor(e.total, e.currency)}
             {groupName && ` · ${groupName}`}

@@ -9,6 +9,7 @@ import { SoftDeleteButton } from "@/components/soft-delete-button";
 import { editExpenseContext } from "@/components/expenses/expense-context";
 import { ExpenseDialog } from "@/components/expenses/expense-dialog";
 import { ExpenseHistory } from "@/components/expenses/expense-history";
+import { ReceiptImageCard } from "@/components/expenses/receipt-image";
 import { Money } from "@/components/money";
 import { PersonAvatar } from "@/components/people/person-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import { listComments } from "@/lib/db/comments";
 import { getExpense } from "@/lib/db/expenses";
 import { getPeopleByIds, listFriendships } from "@/lib/db/friends";
 import { getGroup } from "@/lib/db/groups";
+import { getReceiptImage } from "@/lib/db/receipts";
 import type { Person } from "@/lib/db/people";
 
 export const metadata: Metadata = { title: "Expense · SplitLens" };
@@ -58,7 +60,10 @@ export default async function ExpensePage({ params }: { params: Promise<{ id: st
     people = byId;
     editable = [byId[user.id], ...friendships.friends].filter(Boolean);
   }
-  const comments = await listComments(supabase, { expenseId: expense.id });
+  const [comments, receipt] = await Promise.all([
+    listComments(supabase, { expenseId: expense.id }),
+    expense.receiptId ? getReceiptImage(supabase, expense.receiptId).catch(() => null) : null,
+  ]);
   const commentAuthorIds = comments.map((c) => c.authorId).filter((a): a is string => Boolean(a));
   // Anyone who can see this expense may comment live, so preload every likely author.
   const memberUserIds = group ? group.allMembers.flatMap((m) => (m.userId ? [m.userId] : [])) : participantIds;
@@ -151,6 +156,13 @@ export default async function ExpensePage({ params }: { params: Promise<{ id: st
           </ul>
         </div>
       </section>
+
+      {receipt && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold">Receipt</h2>
+          <ReceiptImageCard receipt={receipt} />
+        </section>
+      )}
 
       {expense.items.length > 0 && (
         <section>
