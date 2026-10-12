@@ -63,6 +63,8 @@ git checkout -- lib/db/database.types.ts
 > applied and verified: 20 tables, all RLS-enabled, no `anon` grants, no TRUNCATE/TRIGGER/REFERENCES,
 > 4 buckets (avatars/group-covers public, receipts/attachments private), 10 realtime tables.
 > Vercel Function Region for us-west-2: **pdx1** (Portland).
+>
+> **Status (2026-10-12):** live at `https://www.splitlens2307.xyz` (apex redirects to www; DNS at Porkbun), magic-link email via Resend SMTP from `no-reply@splitlens2307.xyz`.
 
 **Verify in the dashboard**
 - [ ] Table Editor: all 20 `public` tables show **RLS enabled**.
