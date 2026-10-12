@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ExpenseDialog } from "@/components/expenses/expense-dialog";
 import { groupExpenseContext } from "@/components/expenses/expense-context";
 import { ExpenseList } from "@/components/expenses/expense-list";
+import { ConvertCurrenciesDialog } from "@/components/groups/convert-currencies-dialog";
 import { GROUP_TYPE_META, GroupAvatar } from "@/components/groups/group-type";
 import { BalanceList, Money } from "@/components/money";
 import { PersonAvatar } from "@/components/people/person-avatar";
@@ -19,6 +20,7 @@ import { getGroup } from "@/lib/db/groups";
 import { loadGroupLedger } from "@/lib/db/ledger";
 import { groupDebts, netBalances, participantBalance } from "@/lib/splits";
 import { postTargets } from "@/lib/db/splitwise";
+import { SUPPORTED_RATE_CURRENCIES } from "@/lib/rates";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -45,6 +47,7 @@ export default async function GroupPage({
   const alternative = groupDebts(entries, { simplify: !group.simplifyDebts });
 
   const me = group.members.find((m) => m.userId === user.id);
+  const balanceCurrencies = Object.keys(balances).sort();
   const names = Object.fromEntries(group.allMembers.map((m) => [m.memberId, m.userId === user.id ? "You" : m.name]));
   const baseContext = groupExpenseContext(group, user.id);
   const context = baseContext && { ...baseContext, splitwise: await postTargets(supabase, user.id, { groupId: group.id }) };
@@ -128,6 +131,18 @@ export default async function GroupPage({
           />
         </TabsContent>
         <TabsContent value="balances" className="space-y-6">
+          {me && balanceCurrencies.length > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed p-3 text-sm">
+              <span className="text-muted-foreground">Balances are in {balanceCurrencies.join(" and ")}.</span>
+              <ConvertCurrenciesDialog
+                groupId={id}
+                currencies={balanceCurrencies}
+                defaultTarget={SUPPORTED_RATE_CURRENCIES.has(group.defaultCurrency) ? group.defaultCurrency : "USD"}
+                targets={[...new Set([...balanceCurrencies, "USD", group.defaultCurrency])].filter((c) => SUPPORTED_RATE_CURRENCIES.has(c)).sort()}
+                names={names}
+              />
+            </div>
+          )}
           <ul className="divide-y rounded-lg border">
             {group.members.map((m) => (
               <li key={m.memberId} className="flex items-center gap-3 px-3 py-2">
@@ -178,7 +193,8 @@ export default async function GroupPage({
             )}
             {group.simplifyDebts && debts.length < alternative.length && (
               <p className="text-xs text-muted-foreground">
-                Simplify debts is on: {debts.length} {debts.length === 1 ? "payment" : "payments"} instead of {alternative.length}.
+                Simplify debts is on: {debts.length} {debts.length === 1 ? "payment" : "payments"} instead of {alternative.length}. Payments
+                can go between people who didn&apos;t share expenses directly; each friend&apos;s page shows what you two owe each other.
               </p>
             )}
             {!group.simplifyDebts && alternative.length < debts.length && (

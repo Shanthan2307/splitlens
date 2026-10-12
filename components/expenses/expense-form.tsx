@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { CATEGORIES, type CategoryId } from "@/lib/categories";
+import { PICKABLE_CATEGORIES, type CategoryId } from "@/lib/categories";
 import { CURRENCY_CODES } from "@/lib/currencies";
 import {
   buildExpense,
@@ -315,7 +315,7 @@ export function ExpenseForm({ expenseId, groupId, people, meId, friendMode, init
               <CategoryIcon category={category} className="size-9" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(Object.groupBy(CATEGORIES, (c) => c.group)).map(([group, items]) => (
+              {Object.entries(Object.groupBy(PICKABLE_CATEGORIES, (c) => c.group)).map(([group, items]) => (
                 <SelectGroup key={group}>
                   <SelectLabel>{group}</SelectLabel>
                   {items!.map((c) => (

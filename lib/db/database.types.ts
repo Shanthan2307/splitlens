@@ -1190,6 +1190,10 @@ export type Database = {
         Args: { p_email: string; p_group_id: string; p_name: string };
         Returns: Json;
       };
+      convert_group_currencies: {
+        Args: { p_expenses: Json; p_group_id: string };
+        Returns: string[];
+      };
       create_group: {
         Args: {
           p_default_currency: string;

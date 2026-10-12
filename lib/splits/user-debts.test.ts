@@ -14,7 +14,7 @@ const expense = (currency: string, payer: string, shares: Record<string, number>
 };
 
 describe("userDebts", () => {
-  it("combines groups (mapped to users, simplified per group) with friend-only expenses", () => {
+  it("combines groups (direct debts, mapped to users) with friend-only expenses", () => {
     const debts = userDebts(
       [
         {
@@ -24,7 +24,7 @@ describe("userDebts", () => {
           memberUsers: { "m-me": "me", "m-bob": "bob", "m-ph": null },
         },
         {
-          // Chain bob → cat → me simplifies to bob → me.
+          // Chain bob → cat → me stays direct for person-to-person views, even with simplify on.
           simplify: true,
           entries: [expense("EUR", "n-cat", { "n-bob": 500 }), expense("EUR", "n-me", { "n-cat": 500 })],
           memberUsers: { "n-me": "me", "n-bob": "bob", "n-cat": "cat" },
@@ -33,11 +33,12 @@ describe("userDebts", () => {
       [expense("USD", "cat", { me: 300, cat: 300 })],
     );
     expect(debts).toEqual([
-      { from: "bob", to: "me", amount: 500, currency: "EUR" },
+      { from: "bob", to: "cat", amount: 500, currency: "EUR" },
+      { from: "cat", to: "me", amount: 500, currency: "EUR" },
       { from: "bob", to: "me", amount: 1000, currency: "USD" },
       { from: "me", to: "cat", amount: 300, currency: "USD" },
     ]);
-    expect(friendBalances("me", debts)).toEqual({ bob: { USD: 1000, EUR: 500 }, cat: { USD: -300 } });
+    expect(friendBalances("me", debts)).toEqual({ bob: { USD: 1000 }, cat: { EUR: 500, USD: -300 } });
   });
 });
 

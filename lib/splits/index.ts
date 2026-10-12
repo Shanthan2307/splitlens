@@ -84,3 +84,10 @@ export {
   type SplitwiseAmount,
   type SplitwiseShareInput,
 } from "./splitwise";
+export {
+  convertMinor,
+  planCurrencyConversion,
+  type ConversionLeg,
+  type ConversionPlan,
+  type CurrencyConversion,
+} from "./convert";

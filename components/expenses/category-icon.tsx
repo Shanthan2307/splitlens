@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   BedDouble,
   Car,
   CarTaxiFront,
@@ -63,6 +64,7 @@ const ICONS: Record<Category["icon"], LucideIcon> = {
   PawPrint,
   Repeat,
   CircleEllipsis,
+  ArrowLeftRight,
 };
 
 export function CategoryIcon({ category, className }: { category: string; className?: string }) {

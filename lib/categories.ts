@@ -29,7 +29,12 @@ export const CATEGORIES = [
   { id: "pets", label: "Pets", group: "Life", icon: "PawPrint" },
   { id: "subscriptions", label: "Subscriptions", group: "Life", icon: "Repeat" },
   { id: "other", label: "Other", group: "Uncategorized", icon: "CircleEllipsis" },
+  // Created by "Convert to one currency"; not offered in the category picker.
+  { id: "conversion", label: "Currency conversion", group: "Uncategorized", icon: "ArrowLeftRight" },
 ] as const;
+
+/** Categories people can pick for an expense. */
+export const PICKABLE_CATEGORIES = CATEGORIES.filter((c) => c.id !== "conversion");
 
 export type Category = (typeof CATEGORIES)[number];
 export type CategoryId = Category["id"];

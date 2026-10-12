@@ -1,5 +1,4 @@
 import { friendBalances, pairwiseDebts, remapDebts, sortDebts, type CurrencyBalances, type LedgerEntry } from "./balances";
-import { groupDebts } from "./group-debts";
 import type { Minor } from "./money";
 import type { Debt, ParticipantId } from "./types";
 
@@ -20,8 +19,14 @@ function userIdMap(g: GroupLedger, keepPlaceholders: boolean) {
 }
 
 /**
- * Every outstanding debt visible to a user, expressed in user ids: each group's debts
- * (simplified per the group's setting) plus friend-only expenses (entries already in user ids).
+ * Every outstanding debt visible to a user, expressed in user ids: each group's direct debts
+ * plus friend-only expenses (entries already in user ids).
+ *
+ * Person-to-person balances are always direct (from the expenses two people actually share),
+ * never simplified: simplification reroutes debts through third people (Paze pays you instead of
+ * Avaneesh), which made a friend's page show a balance that didn't match your shared expenses.
+ * "Simplify debts" only shapes a group's suggested payments (groupDebts). Each person's total
+ * is the same either way.
  * With keepPlaceholders, debts with placeholder members are kept under their member id
  * (for totals); otherwise they're dropped (for friend lists).
  */
@@ -31,7 +36,7 @@ export function userDebts(
   options: { keepPlaceholders?: boolean } = {},
 ): Debt[] {
   const fromGroups = groups.flatMap((g) =>
-    remapDebts(groupDebts(g.entries, { simplify: g.simplify }), userIdMap(g, options.keepPlaceholders ?? false)),
+    remapDebts(pairwiseDebts(g.entries), userIdMap(g, options.keepPlaceholders ?? false)),
   );
   return sortDebts([...fromGroups, ...pairwiseDebts(direct)]);
 }
@@ -44,7 +49,7 @@ export type PairBalance = {
   amount: Minor;
 };
 
-/** Where two people's balance lives: per group (and outside groups), per currency. Zero balances omitted. */
+/** Where two people's direct balance lives: per group (and outside groups), per currency. Zero balances omitted. */
 export function balancesBetween(
   groups: readonly KeyedGroupLedger[],
   direct: readonly LedgerEntry[],
@@ -57,7 +62,7 @@ export function balancesBetween(
       out.push({ groupId, currency, amount });
     }
   };
-  for (const g of groups) collect(g.groupId, remapDebts(groupDebts(g.entries, { simplify: g.simplify }), g.memberUsers));
+  for (const g of groups) collect(g.groupId, remapDebts(pairwiseDebts(g.entries), g.memberUsers));
   collect(null, pairwiseDebts(direct));
   return out;
 }
