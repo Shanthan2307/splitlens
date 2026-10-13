@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CURRENCY_CODES } from "@/lib/currencies";
 import type { GroupDetail } from "@/lib/db/groups";
@@ -29,7 +28,6 @@ export function GroupSettingsForm({ group }: { group: GroupDetail }) {
   const [name, setName] = useState(group.name);
   const [type, setType] = useState(group.type);
   const [currency, setCurrency] = useState(group.defaultCurrency);
-  const [simplify, setSimplify] = useState(group.simplifyDebts);
   const [splitType, setSplitType] = useState<SplitType>(group.defaultSplitType);
   const [weights, setWeights] = useState<Record<string, string>>(() =>
     Object.fromEntries(group.members.map((m) => [m.memberId, weightToString(group.defaultSplitType, m.defaultSplitWeight)])),
@@ -53,7 +51,6 @@ export function GroupSettingsForm({ group }: { group: GroupDetail }) {
         name,
         type,
         defaultCurrency: currency,
-        simplifyDebts: simplify,
         defaultSplitType: splitType,
         memberWeights: group.members.map((m) => ({ memberId: m.memberId, value: weights[m.memberId] ?? "" })),
       });
@@ -128,16 +125,6 @@ export function GroupSettingsForm({ group }: { group: GroupDetail }) {
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="flex items-center justify-between gap-4">
-        <Label htmlFor="simplify" className="flex flex-col items-start gap-1">
-          Simplify debts
-          <span className="text-xs font-normal text-muted-foreground">
-            Combine debts so everyone settles up with the fewest payments.
-          </span>
-        </Label>
-        <Switch id="simplify" checked={simplify} onCheckedChange={setSimplify} />
       </div>
 
       <div className="space-y-3">

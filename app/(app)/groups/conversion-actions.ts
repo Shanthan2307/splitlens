@@ -8,7 +8,7 @@ import { convertGroupCurrencies } from "@/lib/db/conversions";
 import { loadGroupLedger } from "@/lib/db/ledger";
 import { isCurrencyCode } from "@/lib/currencies";
 import { getRates } from "@/lib/rates";
-import { netBalances, planCurrencyConversion, simplifyDebts, type CurrencyBalances, type Debt, type Minor } from "@/lib/splits";
+import { netBalances, pairwiseDebts, planCurrencyConversion, type CurrencyBalances, type Debt, type LedgerEntry, type Minor } from "@/lib/splits";
 import type { ActionResult } from "@/lib/validation/result";
 
 const inputSchema = z.object({
@@ -34,7 +34,7 @@ async function plan(db: DbClient, groupId: string, target: string) {
   const others = Object.keys(before).filter((c) => c !== target);
   const rates = await getRates(db, target, others);
   const result = planCurrencyConversion(before, target, rates.rates);
-  return { before, rates, result };
+  return { entries, before, rates, result };
 }
 
 /** What converting the group's balances to `target` would do, at today's reference rates. */
@@ -43,7 +43,12 @@ export async function previewConversionAction(input: unknown): Promise<ActionRes
   if (!parsed.success) return { ok: false, error: "Invalid request" };
   const { supabase } = await requireUser();
   try {
-    const { before, rates, result } = await plan(supabase, parsed.data.groupId, parsed.data.target);
+    const { entries, before, rates, result } = await plan(supabase, parsed.data.groupId, parsed.data.target);
+    // Who would owe whom afterwards: the same direct debts, with the conversion entries applied.
+    const converted: LedgerEntry[] = result.conversions.flatMap((c) => [
+      { kind: "expense" as const, ...c.clearLeg },
+      { kind: "expense" as const, ...c.addLeg },
+    ]);
     return {
       ok: true,
       preview: {
@@ -54,7 +59,7 @@ export async function previewConversionAction(input: unknown): Promise<ActionRes
         missing: result.missingRates,
         before,
         after: result.result,
-        payments: simplifyDebts({ [parsed.data.target]: result.result }),
+        payments: pairwiseDebts([...entries, ...converted]),
       },
     };
   } catch (error) {

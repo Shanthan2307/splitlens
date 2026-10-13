@@ -20,7 +20,6 @@ export type GroupSummary = {
 export type GroupDetail = GroupSummary & {
   coverImagePath: string | null;
   defaultSplitType: "equal" | "percentage" | "shares";
-  simplifyDebts: boolean;
   createdBy: string | null;
   members: GroupMember[];
   /** Includes former members, so old expenses can still show their names. */
@@ -103,7 +102,6 @@ export async function getGroup(db: DbClient, groupId: string): Promise<GroupDeta
     coverUrl: coverUrl(db, data.cover_image_path),
     defaultCurrency: data.default_currency,
     defaultSplitType: data.default_split_type as GroupDetail["defaultSplitType"],
-    simplifyDebts: data.simplify_debts,
     createdBy: data.created_by,
     members: all.filter((m) => m.row.left_at === null).map((m) => m.member),
     allMembers: all.map((m) => m.member),
@@ -112,13 +110,14 @@ export async function getGroup(db: DbClient, groupId: string): Promise<GroupDeta
 
 export async function createGroup(
   db: DbClient,
-  input: { name: string; type: Enums<"group_type">; defaultCurrency: string; simplifyDebts: boolean },
+  input: { name: string; type: Enums<"group_type">; defaultCurrency: string },
 ): Promise<string> {
   const { data, error } = await db.rpc("create_group", {
     p_name: input.name,
     p_type: input.type,
     p_default_currency: input.defaultCurrency,
-    p_simplify_debts: input.simplifyDebts,
+    // Debts are never simplified any more; the column is kept for old rows.
+    p_simplify_debts: false,
   });
   if (error) throw dbError("Could not create group", error);
   return data;

@@ -8,7 +8,6 @@ export const createGroupSchema = z.object({
   name: z.string().trim().min(1, "Name your group").max(100),
   type: z.enum(GROUP_TYPES),
   defaultCurrency: z.enum(CURRENCY_CODES),
-  simplifyDebts: z.boolean(),
 });
 
 export const updateGroupSchema = createGroupSchema.extend({

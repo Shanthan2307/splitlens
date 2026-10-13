@@ -71,8 +71,6 @@ export {
   type KeyedGroupLedger,
   type PairBalance,
 } from "./user-debts";
-export { groupDebts } from "./group-debts";
-export { EXACT_SIMPLIFY_LIMIT, simplifyDebts } from "./simplify";
 export { BASIS_POINTS_100_PERCENT, computeSplit, type SplitInput, type SplitResult } from "./split";
 export type { Debt, ParticipantAmount, ParticipantId } from "./types";
 

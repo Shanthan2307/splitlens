@@ -3,7 +3,6 @@ import type { Minor } from "./money";
 import type { Debt, ParticipantId } from "./types";
 
 export type GroupLedger = {
-  simplify: boolean;
   /** Entries whose participant ids are group member ids. */
   entries: LedgerEntry[];
   /** member id → user id (null for placeholders). */
@@ -25,8 +24,7 @@ function userIdMap(g: GroupLedger, keepPlaceholders: boolean) {
  * Person-to-person balances are always direct (from the expenses two people actually share),
  * never simplified: simplification reroutes debts through third people (Paze pays you instead of
  * Avaneesh), which made a friend's page show a balance that didn't match your shared expenses.
- * "Simplify debts" only shapes a group's suggested payments (groupDebts). Each person's total
- * is the same either way.
+ * Debts are never simplified anywhere in the app.
  * With keepPlaceholders, debts with placeholder members are kept under their member id
  * (for totals); otherwise they're dropped (for friend lists).
  */

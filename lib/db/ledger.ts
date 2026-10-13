@@ -23,7 +23,7 @@ export async function loadUserLedger(db: DbClient, userId: string): Promise<User
     db
       .from("group_members")
       .select(
-        "group:groups!inner(id, name, simplify_debts, deleted_at, group_members(id, user_id, placeholder_name, profile:profiles(display_name, email)))",
+        "group:groups!inner(id, name, deleted_at, group_members(id, user_id, placeholder_name, profile:profiles(display_name, email)))",
       )
       .eq("user_id", userId)
       .is("left_at", null)
@@ -44,7 +44,7 @@ export async function loadUserLedger(db: DbClient, userId: string): Promise<User
       names[m.id] = name;
       if (m.user_id) names[m.user_id] = name;
     }
-    groups.set(group.id, { groupId: group.id, name: group.name, simplify: group.simplify_debts, entries: [], memberUsers: users });
+    groups.set(group.id, { groupId: group.id, name: group.name, entries: [], memberUsers: users });
   }
 
   const direct: LedgerEntry[] = [];

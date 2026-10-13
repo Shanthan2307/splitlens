@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireUser } from "@/lib/auth";
 import { getGroup } from "@/lib/db/groups";
 import { loadGroupLedger } from "@/lib/db/ledger";
-import { groupDebts, netBalances, participantBalance } from "@/lib/splits";
+import { netBalances, pairwiseDebts, participantBalance } from "@/lib/splits";
 import { postTargets } from "@/lib/db/splitwise";
 import { SUPPORTED_RATE_CURRENCIES } from "@/lib/rates";
 
@@ -43,8 +43,8 @@ export default async function GroupPage({
 
   const { expenses, settlements, entries } = await loadGroupLedger(supabase, id);
   const balances = netBalances(entries);
-  const debts = groupDebts(entries, { simplify: group.simplifyDebts });
-  const alternative = groupDebts(entries, { simplify: !group.simplifyDebts });
+  // Direct debts only: what each person owes each other from the expenses they shared.
+  const debts = pairwiseDebts(entries);
 
   const me = group.members.find((m) => m.userId === user.id);
   const balanceCurrencies = Object.keys(balances).sort();
@@ -161,7 +161,7 @@ export default async function GroupPage({
           </ul>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">{group.simplifyDebts ? "Suggested payments" : "Who owes whom"}</h2>
+            <h2 className="text-sm font-semibold">Who owes whom</h2>
             {debts.length === 0 ? (
               <p className="text-sm text-muted-foreground">Everyone is settled up.</p>
             ) : (
@@ -190,21 +190,6 @@ export default async function GroupPage({
                   </li>
                 ))}
               </ul>
-            )}
-            {group.simplifyDebts && debts.length < alternative.length && (
-              <p className="text-xs text-muted-foreground">
-                Simplify debts is on: {debts.length} {debts.length === 1 ? "payment" : "payments"} instead of {alternative.length}. Payments
-                can go between people who didn&apos;t share expenses directly; each friend&apos;s page shows what you two owe each other.
-              </p>
-            )}
-            {!group.simplifyDebts && alternative.length < debts.length && (
-              <p className="text-xs text-muted-foreground">
-                Turn on{" "}
-                <Link href={`/groups/${id}/settings`} className="underline">
-                  simplify debts
-                </Link>{" "}
-                to settle up with {alternative.length} {alternative.length === 1 ? "payment" : "payments"} instead of {debts.length}.
-              </p>
             )}
           </section>
         </TabsContent>

@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CURRENCY_CODES } from "@/lib/currencies";
 import { GROUP_TYPES } from "@/lib/validation/group";
@@ -21,7 +20,6 @@ export function CreateGroupDialog({ defaultCurrency }: { defaultCurrency: string
   const [name, setName] = useState("");
   const [type, setType] = useState<(typeof GROUP_TYPES)[number]>("trip");
   const [currency, setCurrency] = useState(defaultCurrency);
-  const [simplify, setSimplify] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -29,7 +27,7 @@ export function CreateGroupDialog({ defaultCurrency }: { defaultCurrency: string
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     startTransition(async () => {
-      const result = await createGroupAction({ name, type, defaultCurrency: currency, simplifyDebts: simplify });
+      const result = await createGroupAction({ name, type, defaultCurrency: currency });
       if (!result.ok) return setError(result.error);
       toast.success("Group created");
       setOpen(false);
@@ -83,13 +81,6 @@ export function CreateGroupDialog({ defaultCurrency }: { defaultCurrency: string
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="group-simplify" className="flex flex-col items-start gap-1">
-              Simplify debts
-              <span className="text-xs font-normal text-muted-foreground">Settle up with the fewest payments.</span>
-            </Label>
-            <Switch id="group-simplify" checked={simplify} onCheckedChange={setSimplify} />
           </div>
           {error && (
             <p className="text-sm text-destructive" role="alert">

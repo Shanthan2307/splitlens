@@ -4,12 +4,12 @@ import {
   friendBalances,
   netBalances,
   pairwiseDebts,
+  sortDebts,
   remapDebts,
   totalBalance,
   type LedgerEntry,
   type LedgerExpense,
 } from "./balances";
-import { groupDebts } from "./group-debts";
 import type { Debt } from "./types";
 
 const err = (code: string) => expect.objectContaining({ code });
@@ -164,21 +164,6 @@ describe("pairwiseDebts", () => {
   });
 });
 
-describe("groupDebts", () => {
-  const entries: LedgerEntry[] = [
-    expense("USD", { a: 1000 }, { b: 1000 }),
-    expense("USD", { b: 1000 }, { c: 1000 }),
-  ];
-  it("without simplification keeps the chain", () => {
-    expect(groupDebts(entries, { simplify: false })).toEqual([
-      { from: "b", to: "a", amount: 1000, currency: "USD" },
-      { from: "c", to: "b", amount: 1000, currency: "USD" },
-    ]);
-  });
-  it("with simplification collapses it", () => {
-    expect(groupDebts(entries, { simplify: true })).toEqual([{ from: "c", to: "a", amount: 1000, currency: "USD" }]);
-  });
-});
 
 describe("remapDebts", () => {
   it("maps member ids to user ids and drops placeholders", () => {
@@ -227,5 +212,19 @@ describe("friendBalances / totalBalance", () => {
         { from: "b", to: "me", amount: 100, currency: "USD" },
       ]),
     ).toEqual({});
+  });
+});
+
+describe("sortDebts", () => {
+  it("orders by currency, larger amount, then from and to", () => {
+    expect(
+      sortDebts([
+        { from: "a", to: "c", amount: 5, currency: "USD" },
+        { from: "a", to: "b", amount: 5, currency: "USD" },
+        { from: "b", to: "a", amount: 5, currency: "USD" },
+        { from: "z", to: "a", amount: 9, currency: "USD" },
+        { from: "z", to: "a", amount: 1, currency: "EUR" },
+      ]).map((d) => `${d.currency}:${d.from}>${d.to}:${d.amount}`),
+    ).toEqual(["EUR:z>a:1", "USD:z>a:9", "USD:a>b:5", "USD:a>c:5", "USD:b>a:5"]);
   });
 });

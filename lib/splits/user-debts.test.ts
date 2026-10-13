@@ -19,13 +19,11 @@ describe("userDebts", () => {
       [
         {
           // me paid; bob and a placeholder owe. Placeholder debts disappear from friend views.
-          simplify: false,
           entries: [expense("USD", "m-me", { "m-me": 1000, "m-bob": 1000, "m-ph": 1000 })],
           memberUsers: { "m-me": "me", "m-bob": "bob", "m-ph": null },
         },
         {
           // Chain bob → cat → me stays direct for person-to-person views, even with simplify on.
-          simplify: true,
           entries: [expense("EUR", "n-cat", { "n-bob": 500 }), expense("EUR", "n-me", { "n-cat": 500 })],
           memberUsers: { "n-me": "me", "n-bob": "bob", "n-cat": "cat" },
         },
@@ -49,7 +47,6 @@ describe("userDebts keepPlaceholders", () => {
   it("keeps debts with placeholders under their member id", () => {
     const groups = [
       {
-        simplify: true,
         entries: [expense("USD", "m-me", { "m-me": 500, "m-ph": 500 })],
         memberUsers: { "m-me": "me", "m-ph": null },
       },
@@ -63,9 +60,9 @@ describe("balancesBetween", () => {
   it("splits a pair's balance by group and outside groups", () => {
     const result = balancesBetween(
       [
-        { groupId: "g1", simplify: false, entries: [expense("USD", "a", { b: 700 })], memberUsers: { a: "me", b: "bob" } },
-        { groupId: "g2", simplify: false, entries: [expense("EUR", "x", { y: 300 })], memberUsers: { x: "bob", y: "me" } },
-        { groupId: "g3", simplify: false, entries: [expense("USD", "p", { q: 100 })], memberUsers: { p: "cat", q: "me" } },
+        { groupId: "g1", entries: [expense("USD", "a", { b: 700 })], memberUsers: { a: "me", b: "bob" } },
+        { groupId: "g2", entries: [expense("EUR", "x", { y: 300 })], memberUsers: { x: "bob", y: "me" } },
+        { groupId: "g3", entries: [expense("USD", "p", { q: 100 })], memberUsers: { p: "cat", q: "me" } },
       ],
       [expense("USD", "bob", { me: 200 })],
       "me",

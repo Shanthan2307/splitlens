@@ -67,7 +67,6 @@ export async function updateGroupAction(input: unknown): Promise<ActionResult> {
       name: rest.name,
       type: rest.type,
       default_currency: rest.defaultCurrency,
-      simplify_debts: rest.simplifyDebts,
       default_split_type: defaultSplitType,
       member_weights: weights,
     });

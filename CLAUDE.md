@@ -86,8 +86,7 @@ lib/
     itemized.ts           items + weighted assignments; tax/tip/service/fee/discount distribution
     payers.ts             validatePayers, expenseNet (paid − owed)
     balances.ts           netBalances, pairwiseDebts, remapDebts, friendBalances, totalBalance
-    simplify.ts           simplifyDebts (minimum transfers)
-    group-debts.ts        groupDebts(entries, { simplify })
+    convert.ts            convertMinor (exact rates, BigInt), planCurrencyConversion
     splitwise.ts          Splitwise decimal strings ↔ minor units, per-person rounding reconciliation
     index.ts              public API — import from "@/lib/splits"
   validation/             shared Zod schemas (+ result.ts ActionResult)
@@ -347,5 +346,7 @@ Shipped in stages, each pushed to `main`: mobile/Android pass, connect, import w
 **Balances fix + currency conversion** (2026-10-12):
 - Person-to-person balances (friend page, Friends list, Dashboard per-person lists) are now always **direct** (`pairwiseDebts`: each expense's debtors owe its payers), regardless of the group's simplify setting. Simplification rerouted debts through third people, so a friend's page could hide what two people owed each other (reported on the "japan" group: Avaneesh showed only $5.50 while owing ¥3,763 directly). "Simplify debts" now only shapes a group's Suggested payments. Totals are unchanged (each person's net is the same either way).
 - **Convert all to one currency** (group Balances tab, shown when balances span more than one currency; defaults to the group's currency): previews every member's balance at the day's ECB reference rate (Frankfurter, `lib/rates.ts`, cached 6 h in `exchange_rates` via the service role; ~30 currencies, others are left as they are), then `convert_group_currencies` writes two exact-split "Currency conversion" expenses per currency (clear the old balances, add the converted ones) through `save_expense` in one transaction. Confirming re-plans with fresh data and refuses if the result differs from the preview. Math: `lib/splits/convert.ts` (`convertMinor` BigInt, half away from zero; `planCurrencyConversion` allocates converted credits and debits by largest remainder, so the target stays exactly zero-sum). Undo = delete both entries. Category `conversion` is hidden from the picker (`PICKABLE_CATEGORIES`).
+
+**Simplify debts removed** (2026-10-13, at the user's request): every view shows direct debts only (`pairwiseDebts`: what each person owes each person from the expenses they shared). The group page's "Who owes whom", friend pages, the Friends list and Dashboard all agree. The toggle is gone from create/settings; `groups.simplify_debts` stays in the schema (always written `false`, never read). `simplify.ts`/`group-debts.ts` were deleted (the phase 3 notes describe the old algorithm).
 
 **Open items**: background/scheduled sync (re-running the wizard syncs for now); updating or deleting a posted expense on Splitwise (posting is create-only); Splitwise preview deployments (one callback URL per app).
